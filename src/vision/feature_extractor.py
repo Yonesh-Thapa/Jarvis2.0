@@ -41,3 +41,4 @@ class FeatureExtractor:
         vertical_edges = self._convolve2d(frame, self._vertical_kernel)
         horizontal_edges = self._convolve2d(frame, self._horizontal_kernel)
         return {'vertical': vertical_edges, 'horizontal': horizontal_edges}
+

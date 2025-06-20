@@ -1,4 +1,6 @@
 from src import DEBUG, debug_print
+import numpy as np
+import os
 
 class MemoryManager:
     """
@@ -67,4 +69,16 @@ class MemoryManager:
         self.memory = [m for m in self.memory if m[4] != mem_hash]
         after = len(self.memory)
         debug_print(f"[MEMORY] Marked incorrect: removed {before - after} memory (core: {len(self.core_concepts)})")
+
+    # --- Persistence Helpers ---
+    def save(self, path: str = "memory/pattern_memory.npy"):
+        """Persist the current memory list to disk."""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        np.save(path, np.array(self.memory, dtype=object))
+
+    def load(self, path: str = "memory/pattern_memory.npy"):
+        """Load memory list from disk if available."""
+        if os.path.exists(path):
+            self.memory = list(np.load(path, allow_pickle=True))
+
 

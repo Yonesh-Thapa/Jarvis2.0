@@ -140,3 +140,4 @@ class TemporalCortex:
         if np.max(l1_prediction) > 0:
             l1_prediction /= np.max(l1_prediction)
         return l1_prediction
+
