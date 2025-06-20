@@ -3,6 +3,7 @@
 Reusable learning logic for error-driven continual learning, reconstruction diagnostics, and memory management.
 """
 import numpy as np
+from src import DEBUG, debug_print
 
 RECON_ERROR_THRESHOLD = 2.0  # Raised to avoid premature pattern deletion
 
@@ -26,7 +27,7 @@ def process_letter_sample(
     if recon_error > RECON_ERROR_THRESHOLD:
         compositional_layer.reinforce(topk, stroke_sdr, lr=0.01)
         if verbose:
-            print(f"[LEARNING] Hebbian update applied for '{letter}' (recon error: {recon_error:.3f}).")
+            debug_print(f"[LEARNING] Hebbian update applied for '{letter}' (recon error: {recon_error:.3f}).")
     else:
         # Optionally reinforce correct patterns as well (positive reinforcement)
         compositional_layer.reinforce(topk, stroke_sdr, lr=0.005)
@@ -38,13 +39,13 @@ def process_letter_sample(
         if not is_correct:
             cognitive_core.memory_manager.mark_incorrect(compressed, schema)
             if verbose:
-                print(f"[LEARNING] Pattern for '{letter}' marked for relearning (high recon error: {recon_error:.3f}).")
+                debug_print(f"[LEARNING] Pattern for '{letter}' marked for relearning (high recon error: {recon_error:.3f}).")
         else:
             cognitive_core.memory_manager.store(stroke_sdr, letter, error=0, reward=1, verified=True)
             if verbose:
-                print(f"[LEARNING] Pattern for '{letter}' stored as verified (recon error: {recon_error:.3f}).")
+                debug_print(f"[LEARNING] Pattern for '{letter}' stored as verified (recon error: {recon_error:.3f}).")
     if verbose:
-        print(f"Letter '{letter}': Recon error={recon_error:.3f}, Active neurons={len(active_neurons)}")
+        debug_print(f"Letter '{letter}': Recon error={recon_error:.3f}, Active neurons={len(active_neurons)}")
     return {
         'is_correct': recon_error <= RECON_ERROR_THRESHOLD,
         'recon_error': recon_error,
@@ -52,3 +53,4 @@ def process_letter_sample(
         'concept_sdr': concept_sdr,
         'recon_sdr': recon_sdr
     }
+
