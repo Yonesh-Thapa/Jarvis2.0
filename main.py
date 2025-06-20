@@ -1,9 +1,15 @@
 #
 # File: main.py (Fully Integrated - Final Correction)
 #
+import os
 import time
 import random
 import numpy as np
+
+# Use a dummy video and audio driver so pygame can run headless
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
 import pygame
 from typing import Dict, List
 
@@ -18,6 +24,7 @@ from src.learning.reconstruction_trainer import ReconstructionTrainer
 
 # Initialize Pygame once, globally, at the very start
 pygame.init()
+pygame.font.init()
 
 def main():
     """Initializes and runs the full AI with its generative vision system."""
