@@ -33,6 +33,7 @@ from src.vision.factorial_encoder import FactorialEncoder
 from src.motor.letter_decoder import LetterDecoder
 from src.motor.stroke_canvas import StrokeCanvas
 from src.learning.reconstruction_trainer import ReconstructionTrainer
+from src.llm_tutor import LLMTutor
 from src.cognitive.perception.stroke_detector import StrokeDetector
 from src.cognitive.perception.compositional_layer import CompositionalLayer
 from src.cognitive.architecture.learning_utils import process_letter_sample
@@ -129,14 +130,16 @@ def main():
 
     cognitive_core = CognitiveCore()  # Instantiate CognitiveCore
     memory_system = MemorySystem()  # Ensure memory_system is defined
+    llm_tutor = LLMTutor()
 
     # Move Webcam instantiation out of the per-letter loop
     webcam = Webcam(font=main_font)
     action_cortex = ActionCortex()
 
+    running_error = 0  # Initialize in outer scope to avoid UnboundLocalError
     try:
         for epoch in range(1, num_epochs + 1):
-            running_error = 0  # Initialize running_error at the start of each epoch
+            running_error = 0
             print(f"\n==================== EPOCH {epoch} ====================")
             training_sequence = characters_to_learn * reps_per_letter
             random.shuffle(training_sequence)
@@ -144,6 +147,7 @@ def main():
             for i, letter in enumerate(training_sequence):
                 total_cycles += 1
                 webcam.set_stimulus(letter)
+                print(llm_tutor.describe_letter(letter))
                 original_image = webcam.capture_frame(augment=True)
                 edge_maps = feature_extractor.extract_edge_maps(original_image)
                 stroke_sdr = stroke_detector.detect((edge_maps['vertical'] + edge_maps['horizontal']) / 2)
@@ -166,8 +170,8 @@ def main():
                     f"memory_size={len(cognitive_core.memory_manager.memory)}"
                 )
                 time.sleep(0.01)
-            avg_error = running_error / reps_per_letter
-            print(f"[EPOCH {epoch}] Letter '{letter}': Average recon error = {avg_error:.3f}")
+            avg_error = running_error / len(training_sequence)
+            print(f"[EPOCH {epoch}] Average recon error = {avg_error:.3f}")
             # --- VERIFICATION PHASE ---
             # Use a fixed font for verification (e.g., Arial)
             font_obj = pygame.font.SysFont("Arial", 48)

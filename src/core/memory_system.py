@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 from src.core.neural_fabric import NeuralFabric
+import numpy as np
+import os
 
 # --- Constants ---
 # Synaptic weights below this threshold are considered weak and will be pruned during sleep.
@@ -23,6 +25,7 @@ class MemorySystem:
     """
     def __init__(self):
         print("Core Module Initialized: Memory System")
+        self.pattern_memory = {}
 
     def _prune_synapses(self, fabric: NeuralFabric) -> int:
         """
@@ -71,3 +74,15 @@ class MemorySystem:
         print(f"  - Homeostatic energy budget restored to {fabric._power_budget}.")
         
         print("--- AWAKENING ---")
+
+    # --- Pattern storage helpers ---
+    def store_pattern(self, label: str, pattern: np.ndarray, path: str = "memory/pattern_store.npy"):
+        self.pattern_memory[label] = pattern
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        np.save(path, self.pattern_memory, allow_pickle=True)
+
+    def retrieve_pattern(self, label: str, path: str = "memory/pattern_store.npy"):
+        if not self.pattern_memory and os.path.exists(path):
+            self.pattern_memory = np.load(path, allow_pickle=True).item()
+        return self.pattern_memory.get(label)
+
