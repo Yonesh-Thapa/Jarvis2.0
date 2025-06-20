@@ -1,4 +1,6 @@
-print("[DEBUG] main.py module loaded.")
+from src import DEBUG, debug_print
+
+debug_print("[DEBUG] main.py module loaded.")
 #
 # File: main.py (Fully Integrated - Final Correction)
 #
@@ -45,7 +47,7 @@ pygame.init()
 pygame.font.init()
 
 def main():
-    print("[DEBUG] main() function entered.")
+    debug_print("[DEBUG] main() function entered.")
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--exclude-font', type=str, default=None, help='Font to exclude from training (for holdout)')
@@ -159,6 +161,10 @@ def main():
                 )
                 running_error += result['recon_error']
                 error_log[letter].append(result['recon_error'])
+                debug_print(
+                    f"[DEBUG] Cycle {total_cycles}: letter={letter}, error={result['recon_error']:.3f}, "
+                    f"memory_size={len(cognitive_core.memory_manager.memory)}"
+                )
                 time.sleep(0.01)
             avg_error = running_error / reps_per_letter
             print(f"[EPOCH {epoch}] Letter '{letter}': Average recon error = {avg_error:.3f}")

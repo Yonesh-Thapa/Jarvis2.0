@@ -1,3 +1,5 @@
+from src import DEBUG, debug_print
+
 class MemoryManager:
     """
     Stores only compressed, salient, or schema-level memories. Prunes low-value or redundant data.
@@ -11,22 +13,22 @@ class MemoryManager:
         self.core_concepts = set()  # Set of hashes for core/verified concepts
 
     def store(self, data, context=None, error=0, reward=0, verified=False):
-        print("[DEBUG] Entered store() method")
+        debug_print("[DEBUG] Entered store() method")
         compressed = self.compression.compress(data)
         schema = self.schema.generate(context)
         salience = self.compute_salience(data, error, reward, verified)
         is_core = verified
         mem_hash = self._memory_hash(compressed, schema)
-        print(f"[DEBUG] Attempting to store memory: hash={mem_hash}, is_core={is_core}, salience={salience}, context={context}")
+        debug_print(f"[DEBUG] Attempting to store memory: hash={mem_hash}, is_core={is_core}, salience={salience}, context={context}")
         if is_core:
             self.core_concepts.add(mem_hash)
         if self.is_salient(salience, is_core):
             self.memory.append((compressed, schema, salience, is_core, mem_hash))
             if len(self.memory) > self.max_memories:
                 self.prune()
-            print(f"[MEMORY] Stored: {len(self.memory)} memories (core: {len(self.core_concepts)})")
+            debug_print(f"[MEMORY] Stored: {len(self.memory)} memories (core: {len(self.core_concepts)})")
         else:
-            print(f"[MEMORY] Not stored: salience too low or not core (salience={salience}, is_core={is_core})")
+            debug_print(f"[MEMORY] Not stored: salience too low or not core (salience={salience}, is_core={is_core})")
 
     def compute_salience(self, data, error, reward, verified):
         # High error, high reward, or verified = high salience
@@ -44,7 +46,7 @@ class MemoryManager:
         non_core.sort(key=lambda m: m[2])
         keep = core + non_core[-(self.max_memories - len(core)):]
         self.memory = keep[-self.max_memories:]
-        print(f"[MEMORY] Pruned: {len(self.memory)} memories remain (core: {len(self.core_concepts)})")
+        debug_print(f"[MEMORY] Pruned: {len(self.memory)} memories remain (core: {len(self.core_concepts)})")
 
     def recall(self, query=None):
         # Return best-matching memory (compressed, schema)
@@ -64,4 +66,5 @@ class MemoryManager:
         before = len(self.memory)
         self.memory = [m for m in self.memory if m[4] != mem_hash]
         after = len(self.memory)
-        print(f"[MEMORY] Marked incorrect: removed {before - after} memory (core: {len(self.core_concepts)})")
+        debug_print(f"[MEMORY] Marked incorrect: removed {before - after} memory (core: {len(self.core_concepts)})")
+
