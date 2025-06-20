@@ -4,26 +4,26 @@
 import time
 import random
 import numpy as np
-import pygame  # Import pygame here
+import pygame
 from typing import Dict, List
 
-# --- Main AI Components ---
 from src.interfaces.transducers import Webcam
 from src.cognitive.temporal_cortex import TemporalCortex
 from src.motivational.homeostatic_core import HomeostaticCore
-
-# --- Generative Vision Components ---
 from src.vision.feature_extractor import FeatureExtractor
 from src.vision.factorial_encoder import FactorialEncoder
 from src.motor.letter_decoder import LetterDecoder
 from src.motor.stroke_canvas import StrokeCanvas
 from src.learning.reconstruction_trainer import ReconstructionTrainer
 
-# --- FIX: Initialize Pygame once, globally, at the very start ---
+# Initialize Pygame once, globally, at the very start
 pygame.init()
 
 def main():
     """Initializes and runs the full AI with its generative vision system."""
+
+    # --- FIX: Create a dummy display to fully initialize all pygame subsystems ---
+    pygame.display.set_mode((1, 1))
 
     print("=========================================")
     print("=      AI v4.0 (Generative Mind)        =")
@@ -32,14 +32,13 @@ def main():
     # 1. --- INITIALIZE ALL SYSTEMS ---
     print("PHASE I: INITIALIZING SYSTEMS...")
 
-    # --- FIX: Create the font object here and inject it as a dependency ---
     try:
         main_font = pygame.font.Font("FreeSans.ttf", 48)
     except FileNotFoundError:
         print("ERROR: FreeSans.ttf not found. Using default pygame font.")
-        main_font = pygame.font.Font(None, 48) # Use a default fallback font
+        main_font = pygame.font.Font(None, 48)
 
-    webcam = Webcam(font=main_font) # Pass the font object in
+    webcam = Webcam(font=main_font)
     feature_extractor = FeatureExtractor()
     encoder = FactorialEncoder(num_latent_neurons=512, feature_dim=7688, k=10)
     decoder = LetterDecoder(latent_dim=512)

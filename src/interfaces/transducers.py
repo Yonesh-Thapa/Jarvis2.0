@@ -11,7 +11,7 @@ class Webcam:
         self.size = size
         self._current_stimulus: str = 'A'
         
-        # --- FIX: The font object is now received from main.py ---
+        # --- FIX: The font object is received from main.py ---
         self.font = font
         
         if self.font:
