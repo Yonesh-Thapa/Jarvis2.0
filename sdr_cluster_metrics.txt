@@ -1,0 +1,3 @@
+Silhouette score: -0.1010
+Mean intra-class distance: 3.1936
+Mean inter-class distance: 3.7172

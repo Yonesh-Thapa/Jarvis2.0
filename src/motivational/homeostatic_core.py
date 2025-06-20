@@ -15,6 +15,10 @@ SENSITIVITY_AROUSAL_THRESHOLD = 0.75
 # more gradual convergence. This should allow stable memories to form.
 FAST_LEARNING_RATE_MODIFIER = 2.0
 
+LOW_ERROR_THRESHOLD = 0.05
+LOW_ERROR_CYCLES = 15
+LOW_ERROR_AROUSAL_JOLT = 0.6
+
 class HomeostaticCore:
     """
     Purpose: To translate cognitive performance into motivational states, including
@@ -27,6 +31,7 @@ class HomeostaticCore:
         self.attention_tag: float = 0.0
         self._stagnation_counter: int = 0
         self._last_error_level: float = -1.0
+        self._low_error_counter: int = 0
         print("Motivational Module Initialized: Homeostatic Core (with Curiosity Drive)")
 
     def update(self, prediction_error_magnitude: float) -> None:
@@ -39,8 +44,13 @@ class HomeostaticCore:
         else:
             self._stagnation_counter = 0
             self._last_error_level = prediction_error_magnitude
-        
-        base_arousal = float(np.tanh(prediction_error_magnitude / 10.0))
+        # --- Low Error Curiosity Check ---
+        if prediction_error_magnitude < LOW_ERROR_THRESHOLD:
+            self._low_error_counter += 1
+        else:
+            self._low_error_counter = 0
+        # Make arousal more sensitive to error
+        base_arousal = float(np.tanh(prediction_error_magnitude / 2.0))  # Was /10.0
 
         # --- Inject Boredom/Frustration Jolt ---
         final_arousal = base_arousal
@@ -49,6 +59,12 @@ class HomeostaticCore:
             print("STATE: Boredom threshold reached. Injecting frustration/curiosity.")
             final_arousal = min(1.0, base_arousal + BOREDOM_AROUSAL_JOLT)
             self._stagnation_counter = 0
+
+        # --- Inject Curiosity Jolt for Low Error ---
+        if self._low_error_counter > LOW_ERROR_CYCLES:
+            print("STATE: Low error for too long. Injecting curiosity/arousal spike.")
+            final_arousal = min(1.0, base_arousal + LOW_ERROR_AROUSAL_JOLT)
+            self._low_error_counter = 0
 
         self.arousal = final_arousal
         self.valence = 1.0 - (2.0 * self.arousal)

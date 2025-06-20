@@ -5,14 +5,15 @@ from __future__ import annotations
 import math
 import random
 import numpy as np
+import scipy.sparse as sp
 from typing import List, Dict, Optional, Any
 
 # --- Constants ---
-MAX_POWER_BUDGET: float = 100000.0
+MAX_POWER_BUDGET: float = 1000000.0  # Increased power budget
 NEURON_RESTING_COST: float = 0.01
 NEURON_FIRING_COST: float = 1.0
 SYNAPSE_TRANSMISSION_COST: float = 0.05
-FIRING_THRESHOLD: float = 1.0
+FIRING_THRESHOLD: float = 0.3  # Lowered from 1.0 to make neuron firing more likely
 ACTIVATION_DECAY_RATE: float = 0.2
 HEBBIAN_LEARNING_RATE: float = 0.01
 SYNAPSE_WEIGHT_DECAY_RATE: float = 0.001
@@ -64,33 +65,81 @@ class Synapse:
         if self.weight < 0.0: self.weight = 0.0
 
 class Layer:
-    def __init__(self, layer_id: int, num_neurons: int, fabric: 'NeuralFabric'):
+    def __init__(self, layer_id: int, num_neurons: int, fabric: 'NeuralFabric', input_shape=None, rf_size=7):
         self.layer_id: int = layer_id
         self.fabric: 'NeuralFabric' = fabric
         self.neurons: List[Neuron] = [Neuron(i, layer_id, fabric) for i in range(num_neurons)]
         self.bottom_up_synapses: List[Synapse] = []
+        self.input_shape = input_shape  # (H, W) for 2D layers
+        self.rf_size = rf_size  # receptive field size
+        self.sparse_weights = None  # Will be initialized for local connectivity
+        if input_shape is not None:
+            self._init_local_sparse_weights()
 
-    def process_cycle(self) -> None:
+    def _init_local_sparse_weights(self):
+        # Each neuron connects only to a local patch in the input
+        H, W = self.input_shape
+        N = len(self.neurons)
+        rf = self.rf_size
+        rows, cols, data = [], [], []
+        for n in range(N):
+            # Map neuron index to 2D position
+            y = n // W
+            x = n % W
+            for dy in range(-rf//2, rf//2+1):
+                for dx in range(-rf//2, rf//2+1):
+                    iy, ix = y+dy, x+dx
+                    if 0 <= iy < H and 0 <= ix < W:
+                        idx = iy*W + ix
+                        rows.append(n)
+                        cols.append(idx)
+                        data.append(np.random.uniform(*INITIAL_WEIGHT_RANGE))
+        shape = (N, H*W)
+        self.sparse_weights = sp.csr_matrix((data, (rows, cols)), shape=shape)
+
+    def process_cycle(self, input_vector=None) -> None:
         num_neurons = len(self.neurons)
         if num_neurons == 0:
             return
-
-        num_winners = max(1, int(num_neurons * K_WINNERS_PERCENT))
+        # Only compute for neurons with significant input (sparse/event-driven)
+        if input_vector is not None and self.sparse_weights is not None:
+            # Skip if all input is zero
+            if np.count_nonzero(input_vector) == 0:
+                return
+            # Local receptive field: only compute weighted sum for local patch (sparse)
+            potentials = self.sparse_weights @ input_vector
+            # Winner-take-all: only top k fire
+            num_winners = max(1, int(num_neurons * K_WINNERS_PERCENT))
+            winner_indices = np.argpartition(potentials, -num_winners)[-num_winners:]
+            # Batch update firing state and activation potential
+            firing_mask = np.zeros(num_neurons, dtype=bool)
+            firing_mask[winner_indices] = True
+            for i, neuron in enumerate(self.neurons):
+                neuron.firing_state = firing_mask[i]
+                if firing_mask[i]:
+                    neuron.activation_potential = potentials[i]
+            for i in winner_indices:
+                self.neurons[i].update_state()
+            return
+        # Dense case (fallback)
         potentials = np.array([n.activation_potential for n in self.neurons])
+        active_indices = np.where(potentials > 1e-3)[0]
+        if len(active_indices) == 0:
+            return
+        num_winners = max(1, int(num_neurons * K_WINNERS_PERCENT))
         eligible_indices = np.where(potentials >= FIRING_THRESHOLD)[0]
-
         if len(eligible_indices) > num_winners:
             eligible_potentials = potentials[eligible_indices]
             top_k_in_eligible = np.argsort(eligible_potentials)[-num_winners:]
             winner_indices = eligible_indices[top_k_in_eligible]
         else:
             winner_indices = eligible_indices
-
+        firing_mask = np.zeros(num_neurons, dtype=bool)
+        firing_mask[winner_indices] = True
         for i, neuron in enumerate(self.neurons):
-            neuron.firing_state = i in winner_indices
-        
-        for neuron in self.neurons:
-            neuron.update_state()
+            neuron.firing_state = firing_mask[i]
+        for i in active_indices:
+            self.neurons[i].update_state()  # Only update active neurons
 
     def update_synapses(self, learning_modifier: float = 1.0) -> None:
         for synapse in self.bottom_up_synapses:
@@ -104,8 +153,7 @@ class NeuralFabric:
     def __init__(self):
         self.layers: List[Layer] = []
         self._power_budget: float = MAX_POWER_BUDGET
-        self.total_energy_consumed: float = 0.0
-        print("Core Module Initialized: Neural Fabric v2.0 (with Competitive Firing)")
+        self.total_energy_consumed = 0.0
 
     def consume_energy(self, amount: float, source: str) -> None:
         self.total_energy_consumed += amount
@@ -115,9 +163,8 @@ class NeuralFabric:
                 f"Last consumption of {amount} from '{source}' was the final straw."
             )
 
-    def add_layer(self, num_neurons: int) -> Layer:
-        layer_id = len(self.layers)
-        layer = Layer(layer_id, num_neurons, self)
+    def add_layer(self, num_neurons: int, input_shape=None, rf_size=7) -> Layer:
+        layer = Layer(len(self.layers), num_neurons, self, input_shape=input_shape, rf_size=rf_size)
         self.layers.append(layer)
         return layer
 
@@ -163,14 +210,22 @@ class NeuralFabric:
         input_layer = self.layers[0]
         if len(sensory_input) != len(input_layer.neurons):
             raise ValueError("Input length must match input layer size.")
-        
         self._reset_cycles()
-
-        for i, neuron in enumerate(input_layer.neurons):
-            neuron.activation_potential = sensory_input[i]
-
+        # Only set activation for nonzero input (sparse)
+        sensory_input = np.array(sensory_input)
+        nonzero_indices = np.where(np.abs(sensory_input) > 1e-3)[0]
+        if len(nonzero_indices) == 0:
+            return
+        for i in nonzero_indices:
+            input_layer.neurons[i].activation_potential = sensory_input[i]
         for layer in self.layers:
-            layer.process_cycle()
+            # Only process if there is significant input
+            if hasattr(layer, 'sparse_weights') and layer.sparse_weights is not None:
+                input_vec = np.array([n.activation_potential for n in layer.neurons])
+                if np.count_nonzero(input_vec) == 0:
+                    continue
+                layer.process_cycle(input_vec)
+            else:
+                layer.process_cycle()
             self._propagate(layer.layer_id)
-
         self._apply_learning(learning_modifier)

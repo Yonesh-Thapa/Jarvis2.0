@@ -33,3 +33,11 @@ class FeatureExtractor:
         # Normalize to prevent exploding values
         features /= np.max(np.abs(features))
         return features
+
+    def extract_edge_maps(self, frame: np.ndarray) -> dict:
+        """Extracts edge maps from the frame for stroke detection."""
+        if frame.max() == 0:
+            return {'vertical': np.zeros((62, 62)), 'horizontal': np.zeros((62, 62))}
+        vertical_edges = self._convolve2d(frame, self._vertical_kernel)
+        horizontal_edges = self._convolve2d(frame, self._horizontal_kernel)
+        return {'vertical': vertical_edges, 'horizontal': horizontal_edges}

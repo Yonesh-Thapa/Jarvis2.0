@@ -12,10 +12,10 @@ class FactorialEncoder:
     Encodes a feature vector into a sparse, factorial representation. It uses
     a gating mechanism based on neuron usage to ensure diverse concepts are formed.
     """
-    def __init__(self, num_latent_neurons=128, feature_dim=7688, k=5):
+    def __init__(self, num_latent_neurons=128, feature_dim=7688, k=10):
         self.num_latent_neurons = num_latent_neurons
         self.feature_dim = feature_dim
-        self.k = k
+        self.k = 10  # Always use exactly 10 winners
         self.weight_path = "memory/factorial_weights.npy"
         self.usage_path = "memory/neuron_usage.npy"
 
@@ -48,8 +48,13 @@ class FactorialEncoder:
         usage_penalty = 0.2 
         gated_scores = distances + (self.neuron_usage * usage_penalty)
         
-        active_indices = np.argsort(gated_scores)[:self.k]
-        
+        # Always select exactly k winners, even if there are ties
+        sorted_indices = np.argsort(gated_scores)
+        active_indices = sorted_indices[:self.k]
+        if len(active_indices) < self.k:
+            # Pad with additional indices if not enough (shouldn't happen, but for safety)
+            pad = np.setdiff1d(np.arange(self.num_latent_neurons), active_indices)[:self.k - len(active_indices)]
+            active_indices = np.concatenate([active_indices, pad])
         spikes = np.zeros(self.num_latent_neurons)
         spikes[active_indices] = 1.0
         
